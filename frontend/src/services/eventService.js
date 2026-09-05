@@ -3,7 +3,7 @@
  * Centralised client-side telemetry dispatcher.
  * 
  * Every event sent to the backend includes:
- *   - event_id       (auto-generated)
+ *   - event_id       (auto-generated as web_NUMBER, e.g. web_000042)
  *   - event_type     (payment | order | activity | auth | log | inventory | ...)
  *   - timestamp      (unix epoch seconds)
  *   - customer_value (estimated lifetime / cart value of the user)
@@ -36,15 +36,18 @@ const PROCESSING_COST_MAP = {
 };
 
 /**
- * Generate a short unique event ID
- * @returns {string}
+ * Sequential event counter — persisted in localStorage so the number never
+ * resets across page reloads within the same browser.
+ * Format: web_000001, web_000002, ..., web_999999
  */
-function generateEventId() {
-  const chars = 'abcdef0123456789';
-  let id = 'evt_';
-  for (let i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
-  return id;
+function getNextEventId() {
+  const KEY = 'nexora_evt_counter';
+  let counter = parseInt(localStorage.getItem(KEY) || '0', 10);
+  counter += 1;
+  localStorage.setItem(KEY, String(counter));
+  return `web_${String(counter).padStart(6, '0')}`;
 }
+
 
 /**
  * Detect region from locale (simplified for India routing)
@@ -84,7 +87,7 @@ export async function sendEvent({
   metadata = {},
 }) {
   const payload = {
-    event_id: generateEventId(),
+    event_id: getNextEventId(),
     event_type,
     timestamp: Math.floor(Date.now() / 1000),
     customer_value: Number(customer_value) || 0,
